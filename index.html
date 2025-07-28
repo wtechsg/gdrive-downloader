@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Google Drive Downloader</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 50px auto;
+      text-align: center;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px 0;
+      width: 100%;
+      font-size: 16px;
+    }
+    .error {
+      color: red;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Download from Google Shared Drive</h2>
+  <p>Paste a shared Google Drive file link:</p>
+  
+  <input type="text" id="gdriveLink" placeholder="https://drive.google.com/file/d/..." />
+  <button onclick="handleDownload()">Download</button>
+  
+  <p id="status" class="error"></p>
+
+  <script>
+    function extractFileId(url) {
+      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      return match ? match[1] : null;
+    }
+
+    function handleDownload() {
+      const link = document.getElementById("gdriveLink").value.trim();
+      const status = document.getElementById("status");
+      status.textContent = "";
+
+      if (!link.includes("drive.google.com")) {
+        status.textContent = "Error: Only Google Drive links are allowed.";
+        return;
+      }
+
+      const fileId = extractFileId(link);
+      if (!fileId) {
+        status.textContent = "Invalid Google Drive file link.";
+        return;
+      }
+
+      // Redirect to download endpoint (you must implement this backend)
+      window.location.href = `https://yourdomain.com/api/download?fileId=${fileId}`;
+    }
+  </script>
+</body>
+</html>

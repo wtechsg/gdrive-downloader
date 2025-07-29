@@ -1,18 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Google Drive Downloader</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 500px;
+      max-width: 600px;
       margin: 50px auto;
       text-align: center;
     }
     input, button {
       padding: 10px;
-      margin: 10px 0;
       width: 100%;
+      margin: 10px 0;
       font-size: 16px;
     }
     .error {
@@ -22,38 +23,39 @@
   </style>
 </head>
 <body>
-  <h2>Download from Google Shared Drive</h2>
-  <p>Paste a shared Google Drive file link:</p>
+  <h2>Google Drive Direct Downloader</h2>
+  <p>Paste a <strong>public Google Drive file link</strong> below:</p>
   
-  <input type="text" id="gdriveLink" placeholder="https://drive.google.com/file/d/..." />
+  <input id="gdriveLink" type="text" placeholder="https://drive.google.com/file/d/FILE_ID/view">
   <button onclick="handleDownload()">Download</button>
-  
   <p id="status" class="error"></p>
 
   <script>
     function extractFileId(url) {
-      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      const regex = /\/file\/d\/([a-zA-Z0-9_-]+)\//;
+      const match = url.match(regex);
       return match ? match[1] : null;
     }
 
     function handleDownload() {
-      const link = document.getElementById("gdriveLink").value.trim();
+      const input = document.getElementById("gdriveLink").value.trim();
       const status = document.getElementById("status");
       status.textContent = "";
 
-      if (!link.includes("drive.google.com")) {
-        status.textContent = "Error: Only Google Drive links are allowed.";
+      if (!input.includes("drive.google.com")) {
+        status.textContent = "Only Google Drive links are allowed.";
         return;
       }
 
-      const fileId = extractFileId(link);
+      const fileId = extractFileId(input);
       if (!fileId) {
-        status.textContent = "Invalid Google Drive file link.";
+        status.textContent = "Invalid link format.";
         return;
       }
 
-      // Redirect to download endpoint (you must implement this backend)
-      window.location.href = `https://wtechsg.github.io/gdrive-downloader/api/download?fileId=${fileId}`;
+      // Build a direct download link
+      const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      window.location.href = downloadUrl;
     }
   </script>
 </body>

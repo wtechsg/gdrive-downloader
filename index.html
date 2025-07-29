@@ -2,60 +2,64 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Google Drive Downloader</title>
+  <title>Google Drive File Downloader</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: 50px auto;
-      text-align: center;
-    }
-    input, button {
-      padding: 10px;
-      width: 100%;
-      margin: 10px 0;
-      font-size: 16px;
-    }
-    .error {
-      color: red;
-      font-size: 14px;
-    }
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; text-align: center; }
+    input, button { padding: 10px; width: 100%; font-size: 16px; margin-top: 10px; }
+    .error { color: red; }
   </style>
 </head>
 <body>
-  <h2>Google Drive Direct Downloader</h2>
-  <p>Paste a <strong>public Google Drive file link</strong> below:</p>
-  
-  <input id="gdriveLink" type="text" placeholder="https://drive.google.com/file/d/FILE_ID/view">
-  <button onclick="handleDownload()">Download</button>
+  <h2>Download Google Drive File</h2>
+  <input id="fileLink" type="text" placeholder="Paste public Google Drive file link here">
+  <button onclick="downloadFile()">Download File</button>
   <p id="status" class="error"></p>
 
   <script>
+    const API_KEY = 'AIzaSyA-MD2LyqhzFQ0QPMjMU6AVDvSRHCLADY8'; // ← Replace with your real key
+
     function extractFileId(url) {
-      const regex = /\/file\/d\/([a-zA-Z0-9_-]+)\//;
-      const match = url.match(regex);
+      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
       return match ? match[1] : null;
     }
 
-    function handleDownload() {
-      const input = document.getElementById("gdriveLink").value.trim();
-      const status = document.getElementById("status");
-      status.textContent = "";
+    async function downloadFile() {
+      const url = document.getElementById('fileLink').value.trim();
+      const status = document.getElementById('status');
+      status.textContent = '';
 
-      if (!input.includes("drive.google.com")) {
-        status.textContent = "Only Google Drive links are allowed.";
-        return;
-      }
-
-      const fileId = extractFileId(input);
+      const fileId = extractFileId(url);
       if (!fileId) {
-        status.textContent = "Invalid link format.";
+        status.textContent = 'Invalid Google Drive file link.';
         return;
       }
 
-      // Build a direct download link
-      const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-      window.location.href = downloadUrl;
+      const metaUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name&key=${API_KEY}`;
+      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+
+      try {
+        // Get file name
+        const metaRes = await fetch(metaUrl);
+        if (!metaRes.ok) throw new Error('Failed to get file metadata');
+        const meta = await metaRes.json();
+
+        // Download file blob
+        const fileRes = await fetch(downloadUrl);
+        if (!fileRes.ok) throw new Error('File is not publicly downloadable');
+        const blob = await fileRes.blob();
+
+        // Download trigger
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = meta.name || 'downloaded-file';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (err) {
+        console.error(err);
+        status.textContent = 'Failed to download file. Make sure it is shared publicly.';
+      }
     }
   </script>
 </body>

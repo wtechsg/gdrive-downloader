@@ -4,169 +4,64 @@
   <meta charset="UTF-8">
   <title>Google Drive File Downloader</title>
   <style>
-    * { box-sizing: border-box; }
-
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; text-align: center; padding-top: 70px; }
-    input, button { width: 100%; padding: 10px; margin: 10px 0; font-size: 16px; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; text-align: center; }
+    input, button { width: 100%; padding: 10px; margin: 10px 5px; font-size: 16px; }
     .error { color: red; }
-    #status { font-size: 14px; }
-    #status.info { color: #555; }
-
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 52px;
-      background: #1a73e8;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 20px;
-      z-index: 999;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-
-    nav .nav-title {
-      color: white;
-      font-size: 15px;
-      font-weight: bold;
-      letter-spacing: 0.3px;
-    }
-
-    nav .nav-version {
-      background: rgba(255,255,255,0.2);
-      color: white;
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 10px;
-      letter-spacing: 0.5px;
-    }
   </style>
 </head>
 <body>
-  <nav>
-    <span class="nav-title">📄 Google Drive File Downloader</span>
-    <span class="nav-version">v1</span>
-  </nav>
-
-  <p style="margin-top:20px;">Paste a <strong>public shared Google Drive file link</strong> below:</p>
-  <input id="fileLink" type="text" placeholder="https://drive.google.com/file/d/FILE_ID/view?usp=sharing" />
-  <button id="downloadBtn" onclick="downloadFile()">Download File</button>
-  <p id="status"></p>
+  <h2>Google Drive File Downloader</h2>
+   <p>Paste a <strong>Public shared Google Drive file link</strong> below:</p>
+  <input id="fileLink" type="text" placeholder="https://drive.google.com/file/d/FILE_ID">
+  <button onclick="downloadFile()">Download File</button>
+  <p id="status" class="error"></p>
 
   <script>
     const API_KEY = 'AIzaSyA-MD2LyqhzFQ0QPMjMU6AVDvSRHCLADY8'; // ← Replace with your real key
 
-    // Google Workspace native types that can't be fetched via alt=media —
-    // must be exported to a binary format instead.
-    const EXPORT_MAP = {
-      'application/vnd.google-apps.document':     { mime: 'application/pdf', ext: '.pdf' },
-      'application/vnd.google-apps.spreadsheet':  { mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: '.xlsx' },
-      'application/vnd.google-apps.presentation': { mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ext: '.pptx' },
-      'application/vnd.google-apps.drawing':      { mime: 'image/png', ext: '.png' },
-    };
-
-    function extractFileId(input) {
-      const trimmed = input.trim();
-
-      const patterns = [
-        /\/file\/d\/([a-zA-Z0-9_-]+)/,   // /file/d/ID (standard file link, with any suffix)
-        /[?&]id=([a-zA-Z0-9_-]+)/,       // open?id=ID (legacy format)
-      ];
-
-      for (const pattern of patterns) {
-        const match = trimmed.match(pattern);
-        if (match) return match[1];
-      }
-
-      // Bare file ID pasted with no URL at all (Drive IDs are typically 33+ chars)
-      if (/^[a-zA-Z0-9_-]{25,}$/.test(trimmed)) {
-        return trimmed;
-      }
-
-      return null;
-    }
-
-    function setStatus(text, isError = false) {
-      const el = document.getElementById('status');
-      el.textContent = text;
-      el.className = isError ? 'error' : 'info';
+    function extractFileId(url) {
+      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      return match ? match[1] : null;
     }
 
     async function downloadFile() {
-      const input = document.getElementById('fileLink').value.trim();
-      const btn = document.getElementById('downloadBtn');
-      setStatus('');
+      const url = document.getElementById('fileLink').value.trim();
+      const status = document.getElementById('status');
+      status.textContent = '';
 
-      const fileId = extractFileId(input);
+      const fileId = extractFileId(url);
       if (!fileId) {
-        setStatus('Invalid Google Drive file link.', true);
+        status.textContent = 'Invalid Google Drive file link.';
         return;
       }
 
-      btn.disabled = true;
-      setStatus('Fetching file info…');
+      const metaUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name&key=${API_KEY}`;
+      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
 
       try {
-        // Fetch name AND mimeType together — mimeType is needed to decide
-        // whether to use alt=media (binary files) or /export (Google Workspace files).
-        // Fetch name, mimeType, and webContentLink together.
-        // webContentLink is Google's own direct download URL for public files —
-        // using it avoids the CORS issue with alt=media, since it's a browser
-        // navigation rather than a cross-origin fetch of file bytes.
-        const metaUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,webContentLink&key=${API_KEY}&supportsAllDrives=true`;
+        // Get file name
         const metaRes = await fetch(metaUrl);
-        if (!metaRes.ok) {
-          const err = await metaRes.json().catch(() => null);
-          throw new Error(err?.error?.message || `Metadata fetch failed (${metaRes.status})`);
-        }
+        if (!metaRes.ok) throw new Error('Failed to get file metadata');
         const meta = await metaRes.json();
 
-        let downloadUrl;
-        let fileName = meta.name || 'downloaded-file';
-        const exportInfo = EXPORT_MAP[meta.mimeType];
+        // Download file blob
+        const fileRes = await fetch(downloadUrl);
+        if (!fileRes.ok) throw new Error('File is not publicly downloadable');
+        const blob = await fileRes.blob();
 
-        if (exportInfo) {
-          // Google Workspace file (Doc/Sheet/Slide/Drawing) — must use /export
-          // since these have no binary content of their own.
-          // This is a direct browser navigation so CORS doesn't apply.
-          downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportInfo.mime)}&key=${API_KEY}&supportsAllDrives=true`;
-          if (!fileName.toLowerCase().endsWith(exportInfo.ext)) {
-            fileName += exportInfo.ext;
-          }
-        } else if (meta.webContentLink) {
-          // Regular binary file — use Google's own webContentLink, which is
-          // a direct download URL that works via browser navigation without
-          // triggering CORS restrictions (unlike fetching alt=media as a blob).
-          downloadUrl = meta.webContentLink;
-        } else {
-          throw new Error('No download URL available for this file. Make sure it is shared publicly.');
-        }
-
-        setStatus('Starting download…');
-
-        // Trigger via hidden anchor — browser navigation, not a fetch(),
-        // so CORS headers on the target URL are irrelevant.
+        // Download trigger
         const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = fileName;
+        a.href = URL.createObjectURL(blob);
+        a.download = meta.name || 'downloaded-file';
         a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-
-        setStatus('Download started.');
       } catch (err) {
         console.error(err);
-        setStatus(`Error: ${err.message}. Make sure the file is shared publicly.`, true);
-      } finally {
-        btn.disabled = false;
+        status.textContent = 'Failed to download file. Make sure it is shared publicly.';
       }
     }
-
-    // Allow pressing Enter in the input field to trigger download.
-    document.getElementById('fileLink').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') downloadFile();
-    });
   </script>
 </body>
 </html>

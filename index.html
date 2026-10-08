@@ -74,7 +74,7 @@
       try {
         // Fetch name AND mimeType together — mimeType is needed to decide
         // whether to use alt=media (binary files) or /export (Google Workspace files).
-        const metaUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType&key=${API_KEY}`;
+        const metaUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType&key=${API_KEY}&supportsAllDrives=true`;
         const metaRes = await fetch(metaUrl);
         if (!metaRes.ok) {
           const err = await metaRes.json().catch(() => null);
@@ -88,13 +88,13 @@
 
         if (exportInfo) {
           // Google Workspace file (Doc/Sheet/Slide/Drawing) — export to a real binary format.
-          fetchUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportInfo.mime)}&key=${API_KEY}`;
+          fetchUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportInfo.mime)}&key=${API_KEY}&supportsAllDrives=true`;
           if (!fileName.toLowerCase().endsWith(exportInfo.ext)) {
             fileName += exportInfo.ext;
           }
         } else {
           // Regular binary file — fetch raw bytes directly.
-          fetchUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+          fetchUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}&supportsAllDrives=true`;
         }
 
         setStatus('Downloading…');
